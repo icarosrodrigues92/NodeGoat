@@ -28,7 +28,8 @@
         {% for doc in memosList %}
         <div class="panel panel-info">
             <div class="panel-body">
-                {{ marked(doc.memo) }}
+                <!-- Fix for A7 - XSS: Escape HTML output to prevent script injection -->
+                {{ marked(doc.memo) | escape }}
             </div>
         </div>
         {% endfor %}
