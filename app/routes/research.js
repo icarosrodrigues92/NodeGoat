@@ -12,7 +12,17 @@ function ResearchHandler(db) {
     this.displayResearch = (req, res) => {
 
         if (req.query.symbol) {
-            const url = req.query.url + req.query.symbol;
+            const STOCK_API_BASE_URL = "https://example-stock-service.local/quote?symbol=";
+            const symbol = String(req.query.symbol).trim();
+
+            if (!/^[A-Z0-9.-]{1,10}$/i.test(symbol)) {
+                res.writeHead(400, {
+                    "Content-Type": "text/plain"
+                });
+                return res.end("Invalid symbol.");
+            }
+
+            const url = STOCK_API_BASE_URL + encodeURIComponent(symbol);
             return needle.get(url, (error, newResponse, body) => {
                 if (!error && newResponse.statusCode === 200) {
                     res.writeHead(200, {
