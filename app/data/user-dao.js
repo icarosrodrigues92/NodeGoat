@@ -15,6 +15,11 @@ function UserDAO(db) {
     const usersCol = db.collection("users");
 
     this.addUser = (userName, firstName, lastName, password, email, callback) => {
+        // Fix for A1 - NoSQL Injection: Validate input types to prevent operator injection
+        // Attackers could send {"userName": {"$ne": null}} to bypass validations
+        if (typeof userName !== 'string' || typeof password !== 'string') {
+            return callback(new Error('Invalid input: userName and password must be strings'), null);
+        }
 
         // Create user document
         const user = {
@@ -22,12 +27,9 @@ function UserDAO(db) {
             firstName,
             lastName,
             benefitStartDate: this.getRandomFutureDate(),
-            password //received from request param
-            /*
             // Fix for A2-1 - Broken Auth
-            // Stores password  in a safer way using one way encryption and salt hashing
+            // Store password safely using bcrypt one-way encryption with salt hashing
             password: bcrypt.hashSync(password, bcrypt.genSaltSync())
-            */
         };
 
         // Add email if set
@@ -55,15 +57,19 @@ function UserDAO(db) {
     };
 
     this.validateLogin = (userName, password, callback) => {
+        // Fix for A1 - NoSQL Injection: Validate input types
+        // Prevent attackers from sending {"$ne": null} as userName
+        if (typeof userName !== 'string' || typeof password !== 'string') {
+            const error = new Error('Invalid username and/or password');
+            error.invalidPassword = true;
+            return callback(error, null);
+        }
 
         // Helper function to compare passwords
         const comparePassword = (fromDB, fromUser) => {
-            return fromDB === fromUser;
-            /*
             // Fix for A2-Broken Auth
-            // compares decrypted password stored in this.addUser()
-            return bcrypt.compareSync(fromDB, fromUser);
-            */
+            // Use bcrypt to securely compare hashed passwords
+            return bcrypt.compareSync(fromUser, fromDB);
         };
 
         // Callback to pass to MongoDB that validates a user document
@@ -95,12 +101,24 @@ function UserDAO(db) {
 
     // This is the good one, see the next function
     this.getUserById = (userId, callback) => {
+        // Fix for A1 - NoSQL Injection: Validate and parse userId
+        const parsedId = parseInt(userId, 10);
+        if (isNaN(parsedId) || parsedId <= 0) {
+            return callback(new Error('Invalid userId'), null);
+        }
+
         usersCol.findOne({
-            _id: parseInt(userId)
+            _id: parsedId
         }, callback);
     };
 
     this.getUserByUserName = (userName, callback) => {
+        // Fix for A1 - NoSQL Injection: Validate input type
+        // Prevent query operator injection (e.g., {"$ne": null})
+        if (typeof userName !== 'string') {
+            return callback(new Error('Invalid userName: must be a string'), null);
+        }
+
         usersCol.findOne({
             userName: userName
         }, callback);
