@@ -15,10 +15,22 @@ function UserDAO(db) {
     const usersCol = db.collection("users");
 
     this.addUser = (userName, firstName, lastName, password, email, callback) => {
-        // Fix for A1 - NoSQL Injection: Validate input types to prevent operator injection
+        // Fix for A1 - NoSQL Injection: Validate input types AND content to prevent operator injection
         // Attackers could send {"userName": {"$ne": null}} to bypass validations
         if (typeof userName !== 'string' || typeof password !== 'string') {
             return callback(new Error('Invalid input: userName and password must be strings'), null);
+        }
+        
+        // Validate userName format: alphanumeric, underscore, dash (max 50 chars)
+        const userNamePattern = /^[a-zA-Z0-9_-]{1,50}$/;
+        if (!userNamePattern.test(userName)) {
+            return callback(new Error('Invalid userName format: only alphanumeric, underscore, and dash allowed'), null);
+        }
+        
+        // Validate password strength: min 8 chars, at least 1 uppercase, 1 lowercase, 1 digit
+        const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+        if (!passwordPattern.test(password)) {
+            return callback(new Error('Invalid password: min 8 chars with uppercase, lowercase, and digit'), null);
         }
 
         // Create user document
@@ -57,9 +69,17 @@ function UserDAO(db) {
     };
 
     this.validateLogin = (userName, password, callback) => {
-        // Fix for A1 - NoSQL Injection: Validate input types
+        // Fix for A1 - NoSQL Injection: Validate input types AND content
         // Prevent attackers from sending {"$ne": null} as userName
         if (typeof userName !== 'string' || typeof password !== 'string') {
+            const error = new Error('Invalid username and/or password');
+            error.invalidPassword = true;
+            return callback(error, null);
+        }
+        
+        // Validate userName format: alphanumeric, underscore, dash (max 50 chars)
+        const userNamePattern = /^[a-zA-Z0-9_-]{1,50}$/;
+        if (!userNamePattern.test(userName)) {
             const error = new Error('Invalid username and/or password');
             error.invalidPassword = true;
             return callback(error, null);
@@ -101,10 +121,10 @@ function UserDAO(db) {
 
     // This is the good one, see the next function
     this.getUserById = (userId, callback) => {
-        // Fix for A1 - NoSQL Injection: Validate and parse userId
+        // Fix for A1 - NoSQL Injection: Validate and parse userId with strict range
         const parsedId = parseInt(userId, 10);
-        if (isNaN(parsedId) || parsedId <= 0) {
-            return callback(new Error('Invalid userId'), null);
+        if (isNaN(parsedId) || parsedId < 0 || parsedId > 999999) {
+            return callback(new Error('Invalid userId: must be a number between 0 and 999999'), null);
         }
 
         usersCol.findOne({
@@ -113,10 +133,16 @@ function UserDAO(db) {
     };
 
     this.getUserByUserName = (userName, callback) => {
-        // Fix for A1 - NoSQL Injection: Validate input type
+        // Fix for A1 - NoSQL Injection: Validate input type AND content
         // Prevent query operator injection (e.g., {"$ne": null})
         if (typeof userName !== 'string') {
             return callback(new Error('Invalid userName: must be a string'), null);
+        }
+        
+        // Validate userName format: alphanumeric, underscore, dash (max 50 chars)
+        const userNamePattern = /^[a-zA-Z0-9_-]{1,50}$/;
+        if (!userNamePattern.test(userName)) {
+            return callback(new Error('Invalid userName format: only alphanumeric, underscore, and dash allowed'), null);
         }
 
         usersCol.findOne({
