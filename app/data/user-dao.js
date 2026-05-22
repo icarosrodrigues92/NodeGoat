@@ -32,6 +32,26 @@ function UserDAO(db) {
         if (!passwordPattern.test(password)) {
             return callback(new Error('Invalid password: min 8 chars with uppercase, lowercase, and digit'), null);
         }
+        
+        // Validate firstName and lastName: only letters, spaces, hyphens, apostrophes (max 50 chars)
+        if (typeof firstName !== 'string' || typeof lastName !== 'string') {
+            return callback(new Error('Invalid input: firstName and lastName must be strings'), null);
+        }
+        const namePattern = /^[a-zA-Z\s'-]{1,50}$/;
+        if (!namePattern.test(firstName) || !namePattern.test(lastName)) {
+            return callback(new Error('Invalid name format: only letters, spaces, hyphens, and apostrophes allowed'), null);
+        }
+        
+        // Validate email if provided
+        if (email) {
+            if (typeof email !== 'string') {
+                return callback(new Error('Invalid email: must be a string'), null);
+            }
+            const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailPattern.test(email) || email.length > 100) {
+                return callback(new Error('Invalid email format'), null);
+            }
+        }
 
         // Create user document
         const user = {
@@ -151,6 +171,16 @@ function UserDAO(db) {
     };
 
     this.getNextSequence = (name, callback) => {
+        // Fix for A1 - NoSQL Injection: Validate counter name parameter
+        // Only allow alphanumeric and underscore (prevent injection)
+        if (typeof name !== 'string') {
+            return callback(new Error('Invalid counter name: must be a string'), null);
+        }
+        const counterPattern = /^[a-zA-Z0-9_]{1,50}$/;
+        if (!counterPattern.test(name)) {
+            return callback(new Error('Invalid counter name format'), null);
+        }
+
         db.collection("counters").findAndModify({
                 _id: name
             }, [], {
